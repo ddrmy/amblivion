@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Lato } from "next/font/google";
 import "./globals.css";
 import { MantineProvider } from "@mantine/core";
+import { Toaster } from "sonner";
 
 const lato = Lato({
   subsets: ["latin"],
@@ -21,7 +22,8 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <body className={`${lato.className} antialiased`}>
-        <MantineProvider>{children}</MantineProvider>
+        {children}
+        <Toaster />
       </body>
     </html>
   );

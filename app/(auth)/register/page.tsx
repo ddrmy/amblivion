@@ -1,20 +1,39 @@
 "use client";
 
+import { Alert, AlertIcon, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { useRouter } from "next/navigation";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolver/zod";
+import { RiCheckboxCircleFill, RiSpam3Fill } from "@remixicon/react";
+import { toast } from "sonner";
 import { z } from "zod";
-import { useState } from "react";
 
-const schema = z
+import { signup } from "../register/actions";
+
+// ZOD SCHEMA
+const registerSchema = z
   .object({
-    name: z.string().min(2, { message: "Name should have at least 2 letters" }),
-    email: z.string().email({ message: "Invalid email" }),
+    email: z.string().email("Email inválido"),
     password: z
       .string()
-      .min(6, { message: "Senha precisa ter no mínimo 6 caracteres" }),
+      .min(8, "A senha deve ter pelo menos 8 caracteres")
+      .regex(/[A-Z]/, "A senha deve conter ao menos uma letra maiúscula")
+      .regex(/[a-z]/, "A senha deve conter ao menos uma letra minúscula")
+      .regex(/[0-9]/, "A senha deve conter ao menos um número")
+      .regex(
+        /[^A-Za-z0-9]/,
+        "A senha deve conter ao menos um caractere especial"
+      ),
     confirmPassword: z.string(),
   })
   .refine((data) => data.password === data.confirmPassword, {
@@ -22,92 +41,148 @@ const schema = z
     path: ["confirmPassword"],
   });
 
-export default async function Register() {
-  const router = useRouter();
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+export type RegisterSchema = z.infer<typeof registerSchema>;
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm({
-    resolver: zodResolver(schema),
+export default function RegisterForm(data: {
+  email: string;
+  password: string;
+}) {
+  const form = useForm<RegisterSchema>({
+    resolver: zodResolver(registerSchema),
+    defaultValues: { email: "", password: "", confirmPassword: "" },
   });
 
-  // React Hook Form + Zod
+  // Observa os campos em tempo real
+  const password = form.watch("password") || "";
+  const confirmPassword = form.watch("confirmPassword") || "";
 
-  // Função que roda ao clicar em criar conta
+  // Checks
+  const checks = {
+    length: password.length >= 8,
+    upper: /[A-Z]/.test(password),
+    lower: /[a-z]/.test(password),
+    number: /[0-9]/.test(password),
+    special: /[^A-Za-z0-9]/.test(password),
+    match: password === confirmPassword && password.length > 0,
+  };
 
-  const handleRegister = () => {
-    // primeiro limpa mensagens antigas
-    setError("");
-    setSuccess("");
+  const FormSchema = z.object();
 
-    // Valida o formulário
-    const validation = form.validate();
-    if (validation.hasErrors) {
-      return; // para aqui se tiver erro
+  const onSubmit = async (values: RegisterSchema) => {
+    try {
+      // 1 — Envia pro server action
+      const result = await signup({
+        email: values.email,
+        password: values.password,
+      });
+
+      // 2 — Erro vindo do supabase
+      if (!result.success) {
+        toast.custom((t) => (
+          <Alert
+            variant="mono"
+            icon="destructive"
+            onClose={() => toast.dismiss(t)}
+          >
+            <AlertIcon>
+              <RiSpam3Fill />
+            </AlertIcon>
+            <AlertTitle>{`Erro: ${result.error}`}</AlertTitle>
+          </Alert>
+        ));
+        return;
+      }
+
+      // 3 — Sucesso
+      toast.custom((t) => (
+        <Alert variant="mono" icon="success" onClose={() => toast.dismiss(t)}>
+          <AlertIcon>
+            <RiCheckboxCircleFill />
+          </AlertIcon>
+          <AlertTitle>Conta criada com sucesso!</AlertTitle>
+        </Alert>
+      ));
+    } catch (err) {
+      // 4 — Erro inesperado no client (raro)
+      toast.error("Erro inesperado. Tente novamente.");
     }
+  };
 
-    const { name, email, password } = form.values;
-
-    // Verifica se já existe alguém com esse e-mail
-
-    const userExist = localStorage.getItem(email);
-    if (userExist) {
-      setError("Esse e-mail já está cadastrado!");
-      return;
-    }
-
-    // Salva o usuário no localStorage
-    const newUser = {
-      name,
-      email,
-      password,
-      createdAt: new Date().toISOString(),
-    };
-
-    localStorage.setItem(email, JSON.stringify(newUser));
-
-    setSuccess("Conta criada com sucesso! Redirecionando para login... ");
-
-    // Depois de 2 segundos vai para a tela de login
-    setTimeout(() => {
-      router.push("/login");
-    }, 2000);
+  const handleReset = () => {
+    form.reset();
   };
 
   return (
-    <div className="h-86 flex flex-col justify-between">
-      <div>
-        <h1 className="text-2xl font-bold">Bem vindo ao Amblivion</h1>
-        <h1 className="text-2xl font-bold">Registre-se para começar</h1>
-        <p className="text-muted-foreground text-sm">
-          Insira os seus dados para se cadastrar
-        </p>
-      </div>
-      <div className="flex flex-col gap-4">
-        <Input type="name" placeholder="Nome" />
-        <Input type="email" placeholder="user@hotmail.com" />
-        <Input type="password" placeholder="***************" />
-        <Input type="confirmPassword" placeholder="***************" />
-      </div>
-      <div className="flex flex-row gap-4 justify-between">
-        <Button
-          variant="outline"
-          className="bg-[#5E81F4] text-white font-bold hover:bg-[#475EAA] hover:text-white w-42 h-10"
-        >
-          Criar Conta
-        </Button>
-        <Button
-          variant="outline"
-          className="bg-[#8181A5]/10 text-[#5E81F4] font-bold hover:bg-[#475EAA] hover:text-white w-42 h-10"
-          onClick={() => router.push("/login")}
-        >
-          Já possui uma conta?
-        </Button>
-      </div>
-    </div>
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="w-80 space-y-4">
+        <FormField
+          control={form.control}
+          name="email"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Email address:</FormLabel>
+              <FormControl>
+                <Input placeholder="Email address" {...field} />
+              </FormControl>
+
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* Senha */}
+        <FormField
+          control={form.control}
+          name="password"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Senha</FormLabel>
+              <FormControl>
+                <Input type="password" placeholder="Senha" {...field} />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+
+        {/* Confirmação de senha */}
+        <FormField
+          control={form.control}
+          name="confirmPassword"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Confirmar senha</FormLabel>
+              <FormControl>
+                <Input
+                  type="password"
+                  placeholder="Repetir a senha"
+                  {...field}
+                />
+              </FormControl>
+
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* CHECKLIST */}
+        <ul className="text-sm space-y-1 bg-neutral-50 p-4 rounded-lg border">
+          <li>{checks.length ? "✔️" : "❌"} Mínimo de 8 caracteres</li>
+          <li>{checks.upper ? "✔️" : "❌"} Pelo menos 1 letra maiúscula</li>
+          <li>{checks.lower ? "✔️" : "❌"} Pelo menos 1 letra minúscula</li>
+          <li>{checks.number ? "✔️" : "❌"} Pelo menos 1 número</li>
+          <li>
+            {checks.special ? "✔️" : "❌"} Pelo menos 1 caractere especial
+            (!@#$%)
+          </li>
+          <li>{checks.match ? "✔️" : "❌"} As senhas coincidem</li>
+        </ul>
+        <div className="flex items-center justify-end gap-2.5">
+          <Button type="button" variant="outline" onClick={handleReset}>
+            Reset
+          </Button>
+          <Button type="submit">Submit</Button>
+        </div>
+      </form>
+    </Form>
   );
 }
