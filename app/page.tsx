@@ -1,13 +1,9 @@
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
+import { getUser } from "@/lib/auth/get-user";
 
 export default async function Home() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("token");
+  const user = await getUser();
 
-  if (token) {
-    redirect("/dashboard");
-  }
-
-  redirect("/login");
+  if (user) redirect("/dashboard");
+  redirect("/sign-in");
 }
