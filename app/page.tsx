@@ -1,9 +1,11 @@
+import { getUserProfile } from "@/lib/auth/get-user-profile";
+import { ROLE_REDIRECT } from "@/lib/auth/roles";
 import { redirect } from "next/navigation";
-import { getUser } from "@/lib/auth/get-user";
 
 export default async function Home() {
-  const user = await getUser();
+  const profile = await getUserProfile();
 
-  if (user) redirect("/dashboard");
-  redirect("/sign-in");
+  if (!profile) redirect("/sign-in");
+
+  redirect(ROLE_REDIRECT[profile.role.name]);
 }

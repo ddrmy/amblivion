@@ -37,6 +37,10 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  console.log("👤 USER NO MIDDLEWARE:", user);
+  console.log("🍪 COOKIES:", request.cookies.getAll());
+  console.log("📍 PATH:", pathname);
+
   const publicRoute = publicRoutes.find((route) => matchRoute(pathname, route));
 
   // 🔒 NÃO logado em rota privada

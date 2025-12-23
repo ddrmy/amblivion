@@ -1,8 +1,11 @@
 "use client";
 
+import { getUser } from "@/lib/auth/get-user";
+import { redirect } from "next/navigation";
 import Image from "next/image";
+import { getUserProfile } from "@/lib/auth/get-user-profile";
 
-export default function AuthLayout({
+export default async function AuthLayout({
   children,
 }: {
   children: React.ReactNode;
